@@ -1,25 +1,25 @@
 /* global $, io */
-
-// Initialize variables
-const $window = $(window);
-const $document = $(document);
-const $messages = $('.messages'); // Messages area
-const $messageInput = $(".message-input input"); // Input message input box
-
 $(() => {
-    // Prompt for setting a username
+  // Initialize variables
+  const $window = $(window);
+  const $document = $(document);
+  const $messages = $('.messages'); // Messages area
+  const $messagesList = $messages.find('ul'); // Messages area
+  const $messageInput = $(".message-input input"); // Input message input box
+  
+  // Prompt for setting a username
   var username;
   var connected = false;
   var typing = false;
   var lastTypingTime;
   // var $currentInput = $usernameInput.focus();
-  
+
   const socket = io();
   $messages.animate({ scrollTop: $document.height() }, "fast");
-  
+
   // Sets the client's username
   const setUsername = () => {
-    username = 'Pashqa!';//cleanInput($usernameInput.val().trim());
+    username = 'Pashqa!'; //cleanInput($usernameInput.val().trim());
 
     // If the username is valid
     if (username) {
@@ -37,18 +37,23 @@ $(() => {
     var message = '';
     if (data.numUsers === 1) {
       message += "there's 1 participant";
-    } else {
+    }
+    else {
       message += "there are " + data.numUsers + " participants";
     }
     // log(message);
     console.log(message);
   };
-  
+
   // Adds the visual chat message to the message list
-  const addChatMessage = (data, options) => {
+  const recieveChatMessage = (data) => {
+    const message = $.trim(data.message);
+    $('<li class="replies"><img src="http://emilcarlsson.se/assets/harveyspecter.png" alt="" /><p>' + message + '</p></li>').appendTo($messagesList);
+    $('.contact.active .preview').html('<span>You: </span>' + message);
+    $messages.animate({ scrollTop: $document.height() }, "fast");
     console.log(data);
   };
-  
+
   // Removes the visual chat typing message
   const removeChatTyping = (data) => {
     console.log(data);
@@ -56,7 +61,7 @@ $(() => {
     //   $(this).remove();
     // });
   };
-  
+
   // Adds the visual chat typing message
   const addChatTyping = (data) => {
     console.log(data);
@@ -81,7 +86,7 @@ $(() => {
 
   // Whenever the server emits 'new message', update the chat body
   socket.on('new message', (data) => {
-    addChatMessage(data);
+    recieveChatMessage(data);
   });
 
   // Whenever the server emits 'user joined', log it in the chat body
@@ -127,69 +132,77 @@ $(() => {
     console.log('attempt to reconnect has failed');
   });
 
+
+
+
+  
+  $("#profile-img").click(function() {
+    $("#status-options").toggleClass("active");
+  });
+  
+  $(".expand-button").click(function() {
+    $("#profile").toggleClass("expanded");
+    $("#contacts").toggleClass("expanded");
+  });
+  
+  $("#status-options ul li").click(function() {
+    $("#profile-img").removeClass();
+    $("#status-online").removeClass("active");
+    $("#status-away").removeClass("active");
+    $("#status-busy").removeClass("active");
+    $("#status-offline").removeClass("active");
+    $(this).addClass("active");
+  
+    if ($("#status-online").hasClass("active")) {
+      $("#profile-img").addClass("online");
+    }
+    else if ($("#status-away").hasClass("active")) {
+      $("#profile-img").addClass("away");
+    }
+    else if ($("#status-busy").hasClass("active")) {
+      $("#profile-img").addClass("busy");
+    }
+    else if ($("#status-offline").hasClass("active")) {
+      $("#profile-img").addClass("offline");
+    }
+    else {
+      $("#profile-img").removeClass();
+    }
+  
+    $("#status-options").removeClass("active");
+  });
+  
+  function sendMessage() {
+    var message = $messageInput.val();
+    if ($.trim(message) == '') {
+      return false;
+    }
+    
+    $('<li class="sent"><img src="http://emilcarlsson.se/assets/mikeross.png" alt="" /><p>' + message + '</p></li>').appendTo($messagesList);
+    $messageInput.val(null);
+    $('.contact.active .preview').html('<span>You: </span>' + message);
+    $messages.animate({ scrollTop: $document.height() }, "fast");
+    // tell server to execute 'new message' and send along one parameter
+    socket.emit('new message', message);
+  }
+  
+  $('.submit').click(function() {
+    sendMessage();
+  });
+  
+  $window.keydown(event => {
+    // Auto-focus the current input when a key is typed
+    if (!(event.ctrlKey || event.metaKey || event.altKey)) {
+      $messageInput.focus();
+    }
+    if (event.which == 13) {
+      sendMessage();
+      event.preventDefault();
+    }
+  });
+
+
+
   setUsername();
 
-});
-
-
-$("#profile-img").click(function() {
-  $("#status-options").toggleClass("active");
-});
-
-$(".expand-button").click(function() {
-  $("#profile").toggleClass("expanded");
-  $("#contacts").toggleClass("expanded");
-});
-
-$("#status-options ul li").click(function() {
-  $("#profile-img").removeClass();
-  $("#status-online").removeClass("active");
-  $("#status-away").removeClass("active");
-  $("#status-busy").removeClass("active");
-  $("#status-offline").removeClass("active");
-  $(this).addClass("active");
-
-  if ($("#status-online").hasClass("active")) {
-    $("#profile-img").addClass("online");
-  }
-  else if ($("#status-away").hasClass("active")) {
-    $("#profile-img").addClass("away");
-  }
-  else if ($("#status-busy").hasClass("active")) {
-    $("#profile-img").addClass("busy");
-  }
-  else if ($("#status-offline").hasClass("active")) {
-    $("#profile-img").addClass("offline");
-  }
-  else {
-    $("#profile-img").removeClass();
-  }
-
-  $("#status-options").removeClass("active");
-});
-
-function newMessage() {
-  var message = $messageInput.val();
-  if ($.trim(message) == '') {
-    return false;
-  }
-  $('<li class="sent"><img src="http://emilcarlsson.se/assets/mikeross.png" alt="" /><p>' + message + '</p></li>').appendTo($('.messages ul'));
-  $messageInput.val(null);
-  $('.contact.active .preview').html('<span>You: </span>' + message);
-  $messages.animate({ scrollTop: $document.height() }, "fast");
-}
-
-$('.submit').click(function() {
-  newMessage();
-});
-
-$window.keydown(event => {
-  // Auto-focus the current input when a key is typed
-  if (!(event.ctrlKey || event.metaKey || event.altKey)) {
-    $messageInput.focus();
-  }
-  if (event.which == 13) {
-    newMessage();
-    event.preventDefault();
-  }
 });
