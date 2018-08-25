@@ -1,74 +1,37 @@
-<html>
+<!-- https://bootsnipp.com/snippets/featured/google-style-login-extended-with-html5-localstorage -->
 
+<!DOCTYPE html><html class=''>
 <head>
-    <title>Home</title>
-    <!-- Latest compiled and minified CSS -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
-    <!-- Optional theme -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap-theme.min.css">
-    <script src="https://code.jquery.com/jquery-1.11.3.min.js"></script>
-    <!-- Latest compiled and minified JavaScript -->
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
-    <script>
-        $(document).ready(function() {
-            $("#username").hide();
-            $('#login-submit').click(function(e) {
-                if ($(this).attr('value') === 'Register') {
-                    $.post("http://localhost:3000/register", {
-                        user_name: $("#username").val(),
-                        user_email: $("#useremail").val(),
-                        user_password: $("#password").val()
-                    }, function(data) {
-                        if (data.error) {
-                            alert(data.message);
-                        }
-                        else {
-                            $("#username").hide();
-                            $("#login-submit").prop('value', 'Log in');
-                        }
-                    });
-                }
-                else {
-                    $.post("/login", {
-                        user_email: $("#useremail").val(),
-                        user_password: $("#password").val()
-                    }, function(data) {
-                        // if (!data.error) {
-                        //     window.location.href = "/";
-                        // }
-                        // else {
-                        //     alert(data.message);
-                        // }
-                    });
-                }
-            });
-            $("#reg").click(function(event) {
-                $("#username").show('slow');
-                $("#login-submit").prop('value', 'Register');
-                event.preventDefault();
-            });
-        });
-    </script>
-</head>
-
+    <meta charset='UTF-8'>
+    <meta name="robots" content="noindex">
+    <script src="//code.jquery.com/jquery-1.11.1.min.js"></script>
+    
+    <link href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.0/css/bootstrap.min.css" rel="stylesheet" id="bootstrap-css">
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.0/js/bootstrap.min.js"></script>
+    
+      
+    <link rel="stylesheet" href="/public/login.css">
+</head>   
 <body>
-    <nav class="navbar navbar-default navbar-fixed-top">
-        <div class="navbar-header">
-            <a class="navbar-brand" href="#">
-                <p>Redis session demo</p>
+    <div class="container">
+        <div class="card card-container">
+            <!-- <img class="profile-img-card" src="//lh3.googleusercontent.com/-6V8xOA6M7BA/AAAAAAAAAAI/AAAAAAAAAAA/rzlHcD0KYwo/photo.jpg?sz=120" alt="" /> -->
+            <img id="profile-img" class="profile-img-card" src="//ssl.gstatic.com/accounts/ui/avatar_2x.png" />
+            <p id="profile-name" class="profile-name-card"></p>
+            <form class="form-signin">
+                <span id="reauth-email" class="reauth-email"></span>
+                <input type="text" id="inputName" class="form-control" placeholder="Full Name" style="display: none">
+                <input type="text" id="inputNick" class="form-control" placeholder="Nickname" required autofocus>
+                <input type="password" id="inputPass" class="form-control" placeholder="Password" required>
+                <div id="remember" class="checkbox">
+                </div>
+                <button id="buttonSignin" class="btn btn-lg btn-primary btn-block btn-signin" type="submit">Sign in</button>
+            </form><!-- /form -->
+            <a href="#" class="forgot-password">
+                Register
             </a>
-        </div>
-        <div class="container">
-            <p class="navbar-text navbar-right">Please sign in</a>
-            </p>
-        </div>
-    </nav>
-    <div class="form-group" style="margin-top: 100px; width : 400px; margin-left : 50px;">
-        <input type="text" id="username" placeholder="Name" class="form-control"><br>
-        <input type="text" id="useremail" placeholder="Email" class="form-control"><br>
-        <input type="password" id="password" placeholder="Password" class="form-control"><br>
-        <input type="button" id="login-submit" value="Log In" class="btn btn-primary">&nbsp;<a href="" id="reg">Sign up here </a>
-    </div>
+        </div><!-- /card-container -->
+    </div><!-- /container -->
+    
+    <script type="text/javascript" src="/public/login.js"></script>
 </body>
-
-</html>

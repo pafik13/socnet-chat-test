@@ -80,3 +80,14 @@ FROM
   messages
 GROUP BY room_key;
   room_key;
+  
+CREATE OR REPLACE VIEW vw_room_last_message
+AS
+SELECT *
+  FROM messages
+ WHERE id IN (
+SELECT
+  max(id)
+FROM
+  messages
+GROUP BY room_key);

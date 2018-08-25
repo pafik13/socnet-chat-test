@@ -15,7 +15,7 @@ $(() => {
   // var $currentInput = $usernameInput.focus();
 
   const socket = io();
-  $messages.animate({ scrollTop: $document.height() }, "fast");
+  // $messages.animate({ scrollTop: $document.height() }, "fast");
 
   // Sets the client's username
   const setUsername = () => {
@@ -204,5 +204,8 @@ $(() => {
 
 
   setUsername();
+  // $messages.animate({ scrollTop: $document.height() });
+  $messages.scrollTop($messages[0].scrollHeight);
+
 
 });
