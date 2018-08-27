@@ -1,4 +1,6 @@
 /* global $, io */
+
+// $('li.contact').map((i, el) => $(el).attr('data-room-key'));
 $(() => {
   // Initialize variables
   const $window = $(window);
@@ -75,6 +77,7 @@ $(() => {
   // Whenever the server emits 'login', log the login message
   socket.on('login', (data) => {
     connected = true;
+    console.log(data);
     // Display the welcome message
     var message = "Welcome to Socket.IO Chat – ";
     console.log(message);
@@ -82,6 +85,11 @@ $(() => {
     //   prepend: true
     // });
     addParticipantsMessage(data);
+    // $('li.contact').each((el) => {
+    //   socket.join($(el).attr('data-room-key'), ()=>{
+    //     console.log(socket.rooms);
+    //   });
+    // });
   });
 
   // Whenever the server emits 'new message', update the chat body
@@ -207,5 +215,27 @@ $(() => {
   // $messages.animate({ scrollTop: $document.height() });
   $messages.scrollTop($messages[0].scrollHeight);
 
+  var OnLoadFinished = function() {
+    $messages.scrollTop($messages[0].scrollHeight);
+  }
 
+  $('li.contact').on('click', function() {
+    var $this = $(this);
+    if ($this.hasClass('active')) {
+      console.log(this);
+      return;
+    }
+    
+    $this
+      .addClass('active')
+      .siblings()
+      .removeClass('active');
+    console.log($this.attr('data-room-key'));
+    if (Math.floor(Math.random() * 10) > 4) {
+      $('div.messages > ul').load('/messages?room_key=2907811687', OnLoadFinished);
+    } else {
+      $('div.messages > ul').load('/messages', OnLoadFinished);
+    }
+    
+  });
 });

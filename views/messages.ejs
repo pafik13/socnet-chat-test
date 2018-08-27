@@ -1,0 +1,14 @@
+<% for(var i=0; i<messages.length;i++) {%>
+  <% if (messages[i].created_by === user.id) { %>
+    <li class="sent">
+      <img src="http://emilcarlsson.se/assets/mikeross.png" alt="" />
+      <p><%=messages[i].message %></p>
+    </li>
+  <% } else { %>
+    <li class="replies">
+      <img src="http://emilcarlsson.se/assets/harveyspecter.png" alt="" />
+      <p><%=messages[i].message %></p>
+    </li>
+  <% } %>
+<%} %>
+ 

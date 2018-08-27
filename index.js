@@ -23,6 +23,7 @@ const sqlQueries = {
   addMessage: squelMysql.insert(squelOpts).into('messages'),
   getMessages: squelMysql.select(squelOpts).from('messages'),
   getUser: squelMysql.select(squelOpts).from('users'),
+  getContactsWLM: squelMysql.select(squelOpts).from('vw_contacts_with_last_message'),
 };
 var async = require("async");
 
@@ -53,7 +54,6 @@ function handle_database(req, type, callback) {
         });
       },
       function(connection, callback) {
-        console.info(connection.escape("asdsa'asd"));
         var SQLquery;
         switch (type) {
           case "users":
@@ -80,8 +80,6 @@ function handle_database(req, type, callback) {
             //           ].join('\n');
             break;
           case "getMessages":
-            // req.body.message = ;
-            // console.log(connection.escape(req.body.message));
             SQLquery = sqlQueries.getMessages.clone()
               .field("id")
               .field("room_key")
@@ -89,6 +87,20 @@ function handle_database(req, type, callback) {
               .field("created_by")
               .field("created_at")
               .where("room_key = ?", req.room_key)
+              .toString();
+            break;
+          case "getContactsWLM":
+            SQLquery = sqlQueries.getContactsWLM.clone()
+              .field("id")
+              .field("nick")
+              .field("name")
+              .field("icon")
+              .field("room_id")
+              .field("room_key")
+              .field("room_last_message")
+              .field("created_by")
+              .field("created_at")
+              .where("user_id = ?", req.session.user.id)
               .toString();
             break;
           case "login":
@@ -133,6 +145,9 @@ function handle_database(req, type, callback) {
               callback(rows.length === 0 ? false : rows[0]);
             }
             else if (type === "getStatus") {
+              callback(rows.length === 0 ? false : rows);
+            }
+            else if (type === "getContactsWLM") {
               callback(rows.length === 0 ? false : rows);
             }
             else if (type === "checkEmail") {
@@ -206,27 +221,30 @@ app.get('/',function(req,res){
   if(req.session.user) {
     // var id = 15;
     req.room_key = 3346011300;
-    handle_database(req, 'getMessages', (result) => {
-      if (result === null) {
-        res.render('chat', {
-          id: req.session.user.id,
-          messages: [
-              {name:'', msg: 'aSdaD', created_by: 5},
-              {name:'', msg: 'AFSfsaf', created_by: 15},
-              {name:'', msg: 'afsafsa', created_by: 5},
-              {name:'', msg: 'ASfsfafs', created_by: 15},
-          ]
-        });      
-      } else {
+    handle_database(req, 'getMessages', (messages) => {
+      handle_database(req, 'getContactsWLM', (contacts) => {
+        req.session.contacts = contacts;
         res.render('chat', {
           user: req.session.user,
-          messages: result
+          messages: messages,
+          contacts: contacts,
         });
-      }
+      });
     });
   } else {
       res.redirect("/login");
   }
+});
+
+app.get('/messages', (req, res, next) => {
+  req.query = req.query || {};
+  req.room_key = req.query.room_key || 3346011300;
+  handle_database(req, 'getMessages', (messages) => {
+    res.render('messages', {
+      user: req.session.user,
+      messages: messages,
+    });
+  });
 });
 
 
@@ -339,17 +357,25 @@ app.get('/chat', (req, res, next) => {
 
 // Chatroom
 var numUsers = 0;
-
+io.use(function(socket, next) {
+    sessionMiddleware(socket.request, socket.request.res, next);
+});
 io.on('connection', (socket) => {
   var addedUser = false;
-
+  
+  // console.info(socket.handshake);
+  console.info('session', socket.request.session);
+  console.log('rooms', socket.rooms);
+  
   // when the client emits 'new message', this listens and executes
   socket.on('new message', (data) => {
-    // we tell the client to execute 'new message'
-    socket.broadcast.emit('new message', {
-      username: socket.username,
-      message: data
-    });
+    if (data.room_key) {
+      // we tell the client to execute 'new message'
+      socket.to(data.room_key).emit('new message', {
+        username: socket.username,
+        message: data
+      });
+    }
   });
 
   // when the client emits 'add user', this listens and executes
@@ -396,4 +422,15 @@ io.on('connection', (socket) => {
       });
     }
   });
+  
+  if (socket.request.session) {
+    if (Array.isArray(socket.request.session.contacts)) {
+      var contacts = socket.request.session.contacts;
+      for(var i=0, n=contacts.length; i<n; i++) {
+        socket.join(contacts[i].room_key, ()=>{
+          console.log(socket.rooms);
+        });
+      }
+    }
+  }
 });

@@ -58,11 +58,14 @@ Author's contacts:
           <div id="contacts">
               <ul>
                 <% for(var i=0; i<contacts.length;i++) {%>
-                  <li class="contact">
+                  <li class="contact" data-room-key="<%=contacts[i].room_key%>">
                       <div class="wrap">
                           <span class="contact-status"></span>
-                          <%= img_tag(contacts[i].icon) %>
-                          <img src="http://emilcarlsson.se/assets/louislitt.png" alt="" />
+                          <% if (contacts[i].icon) { %>
+                            <img src="<%=contacts[i].icon%>" alt="">
+                          <% } else { %>
+                            <i class="fa fa-user fa-3x" aria-hidden="true"></i>
+                          <% } %>
                           <div class="meta">
                               <p class="name"><%=contacts[i].name %></p>
                               <p class="preview"><%=contacts[i].room_last_message %></p>

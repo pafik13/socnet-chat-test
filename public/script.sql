@@ -91,3 +91,25 @@ SELECT
 FROM
   messages
 GROUP BY room_key);
+
+
+CREATE OR REPLACE VIEW vw_contacts_with_last_message
+AS
+SELECT R.id      AS room_id
+     , R.`key`   AS room_key
+     , R.user_id
+     , R.partner_id     AS id
+     , U.name
+     , U.nick
+     , U.icon
+     , RLM.message      AS room_last_message
+     , RLM.created_by   
+     , RLM.created_at
+  FROM rooms R
+  JOIN users U
+    ON R.partner_id = U.id
+  LEFT
+  JOIN vw_room_last_message RLM
+    ON RLM.room_key = R.`key`;
+
+SELECT * FROM vw_contacts_with_last_message WHERE user_id = 15;

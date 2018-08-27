@@ -17,7 +17,30 @@ Author's contacts:
   <script>try{Typekit.load({ async: true });}catch(e){}</script>
   <link rel='stylesheet prefetch' href='https://cdnjs.cloudflare.com/ajax/libs/meyer-reset/2.0/reset.min.css'>
   <link rel='stylesheet prefetch' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.6.2/css/font-awesome.min.css'>
-  
+  <script type="text/javascript">
+     $('li.contact').off()
+ $('li.contact').click((event)=>{
+   console.log(this);
+    $(event.target).addClass('active');
+    // console.log(event);
+    // event.target.addClass('active');
+    $('div.messages > ul').load('/messages'); 
+ });
+ 
+   $('li.contact').on('click', function() {
+     var $this = $(this);
+     if ($this.hasClass('active')) {
+       console.log(this);
+       return;
+     }
+    
+    $(this)
+      .addClass('active')
+      .siblings()
+      .removeClass('active');
+  });
+ 
+  </script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
