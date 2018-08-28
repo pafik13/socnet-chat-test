@@ -1,10 +1,15 @@
 // Setup basic express server
-var express = require('express');
-var app = express();
-var path = require('path');
-var server = require('http').createServer(app);
-var io = require('../..')(server);
-var port = process.env.PORT || 3000;
+const express = require('express');
+const app = express();
+const path = require('path');
+const server = require('http').createServer(app);
+const io = require('socket.io')(server);
+const port = process.env.PORT || 3000;
+const bodyParser = require('body-parser');
+const crc = require('crc').crc32;
+const mysql = require("mysql");
+const squel = require("squel");
+const async = require("async");
 
 // Session deps
 const session = require('express-session');
@@ -12,28 +17,22 @@ const RedisStore = require('connect-redis')(session);
 const redis = require("redis");
 const client = redis.createClient();
 
-
-var crc = require('crc').crc32;
-
+// Constants
 const DUMMY_ICON = 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/Gnome-stock_person.svg/600px-Gnome-stock_person.svg.png';
-const mysql = require("mysql");
-const squel = require("squel");
 const squelMysql = squel.useFlavour('mysql');
 const squelOpts = { autoQuoteTableNames: true, autoQuoteFieldNames: true };
 const sqlQueries = {
-  addMessage: squelMysql.insert(squelOpts).into('messages'),
-  getMessages: squelMysql.select(squelOpts).from('messages', 'M').join('users', 'U', 'M.`created_by` = U.`id`'),
-  getUser: squelMysql.select(squelOpts).from('users'),
-  addUser: squelMysql.insert(squelOpts).into('users'),
+  addMessage: squelMysql.insert(squelOpts).into('tbl_messages'),
+  getMessages: squelMysql.select(squelOpts).from('tbl_messages', 'M').join('tbl_users', 'U', 'M.`created_by` = U.`id`'),
+  getUser: squelMysql.select(squelOpts).from('tbl_users'),
+  addUser: squelMysql.insert(squelOpts).into('tbl_users'),
   getContactsWLM: squelMysql.select(squelOpts).from('vw_contacts_with_last_message'),
-  getContacts: squelMysql.select(squelOpts).from('rooms'),
-  getUnusedContacts: squelMysql.select(squelOpts).from('users'),
+  getContacts: squelMysql.select(squelOpts).from('tbl_rooms'),
+  getUnusedContacts: squelMysql.select(squelOpts).from('tbl_users'),
 };
-var async = require("async");
 
 // Always use MySQL pooling.
 // Helpful for multiple connections.
-
 var pool = mysql.createPool({
   connectionLimit: 100,
   host: 'localhost',
@@ -60,27 +59,21 @@ function handle_database(req, type, callback) {
         var SQLquery;
         switch (type) {
           case "users":
-            SQLquery = "SELECT * from users";
+            SQLquery = "SELECT * from tbl_users";
             break;
           case "inviteUser":
-            SQLquery = ["INSERT INTO rooms(`key`, `user_id`, `partner_id`)",
+            SQLquery = ["INSERT INTO tbl_rooms(`key`, `user_id`, `partner_id`)",
               "VALUES",
               "(" + req.body.room_key + "," + req.body.user_id + "," + req.body.partner_id + "),",
               "(" + req.body.room_key + "," + req.body.partner_id + "," + req.body.user_id + ");",
             ].join('\n');
             break;
           case "addMessage":
-            // req.body.message = ;
-            // console.log(connection.escape(req.body.message));
             SQLquery = sqlQueries.addMessage.clone()
               .set('room_key', req.body.room_key, { dontQuote: true })
               .set('message', connection.escape(req.body.message), { dontQuote: true })
               .set('created_by', req.body.user_id, { dontQuote: true })
               .toString();
-            // SQLquery = ["INSERT INTO messages(`room_key`, `message`, `created_by`)",
-            //             "VALUES",
-            //             "(" + req.body.room_key + ", " + connection.escape(req.body.message) + "," + req.body.user_id + ")",
-            //           ].join('\n');
             break;
           case "getMessages":
             SQLquery = sqlQueries.getMessages.clone()
@@ -129,7 +122,6 @@ function handle_database(req, type, callback) {
               .set('name', connection.escape(req.body.fullname), { dontQuote: true })
               .set('icon', connection.escape(DUMMY_ICON), { dontQuote: true })
               .toString();
-            // SQLquery = "INSERT into users(nick, pwd, name) VALUES ('" + req.body.nickname + "','" + req.body.password + "','" + req.body.fullname + "')";
             break;
           case "addStatus":
             SQLquery = "INSERT into user_status(user_id,user_status) VALUES (" + req.session.key["user_id"] + ",'" + req.body.status + "')";
@@ -209,7 +201,6 @@ app.set("view engine", "ejs");
 
 // Parsers
 // https://stackoverflow.com/questions/5710358/how-to-retrieve-post-query-parameters
-const bodyParser = require('body-parser');
 app.use(bodyParser.json()); // to support JSON-encoded bodies
 app.use(bodyParser.urlencoded({ // to support URL-encoded bodies
   extended: true
