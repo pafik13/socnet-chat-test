@@ -15,15 +15,19 @@ const client = redis.createClient();
 
 var crc = require('crc').crc32;
 
+const DUMMY_ICON = 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/Gnome-stock_person.svg/600px-Gnome-stock_person.svg.png';
 const mysql = require("mysql");
 const squel = require("squel");
 const squelMysql = squel.useFlavour('mysql');
 const squelOpts = { autoQuoteTableNames: true, autoQuoteFieldNames: true };
 const sqlQueries = {
   addMessage: squelMysql.insert(squelOpts).into('messages'),
-  getMessages: squelMysql.select(squelOpts).from('messages'),
+  getMessages: squelMysql.select(squelOpts).from('messages', 'M').join('users', 'U', 'M.`created_by` = U.`id`'),
   getUser: squelMysql.select(squelOpts).from('users'),
+  addUser: squelMysql.insert(squelOpts).into('users'),
   getContactsWLM: squelMysql.select(squelOpts).from('vw_contacts_with_last_message'),
+  getContacts: squelMysql.select(squelOpts).from('rooms'),
+  getUnusedContacts: squelMysql.select(squelOpts).from('users'),
 };
 var async = require("async");
 
@@ -46,9 +50,8 @@ function handle_database(req, type, callback) {
           if (err) {
             // if there is error, stop right away.
             // This will stop the async code execution and goes to last function.
-            callback(true);
-          }
-          else {
+            callback(err);
+          } else {
             callback(null, connection);
           }
         });
@@ -81,11 +84,12 @@ function handle_database(req, type, callback) {
             break;
           case "getMessages":
             SQLquery = sqlQueries.getMessages.clone()
-              .field("id")
+              .field("M.id")
               .field("room_key")
               .field("message")
               .field("created_by")
               .field("created_at")
+              .field("U.icon", 'user_icon')
               .where("room_key = ?", req.room_key)
               .toString();
             break;
@@ -109,6 +113,7 @@ function handle_database(req, type, callback) {
               .field("nick")
               .field("name")
               .field("pwd")
+              .field('icon')
               .where("nick = ?", req.body.nickname)
               .where("pwd = ?", req.body.password)
               .toString();
@@ -118,7 +123,13 @@ function handle_database(req, type, callback) {
             SQLquery = "SELECT * from user_login WHERE user_email='" + req.body.user_email + "'";
             break;
           case "register":
-            SQLquery = "INSERT into users(nick, pwd, name) VALUES ('" + req.body.nick + "','" + req.body.pwd + "','" + req.body.name + "')";
+            SQLquery = sqlQueries.addUser.clone()
+              .set('nick', connection.escape(req.body.nickname), { dontQuote: true })
+              .set('pwd', connection.escape(req.body.password), { dontQuote: true })
+              .set('name', connection.escape(req.body.fullname), { dontQuote: true })
+              .set('icon', connection.escape(DUMMY_ICON), { dontQuote: true })
+              .toString();
+            // SQLquery = "INSERT into users(nick, pwd, name) VALUES ('" + req.body.nickname + "','" + req.body.password + "','" + req.body.fullname + "')";
             break;
           case "addStatus":
             SQLquery = "INSERT into user_status(user_id,user_status) VALUES (" + req.session.key["user_id"] + ",'" + req.body.status + "')";
@@ -126,6 +137,19 @@ function handle_database(req, type, callback) {
           case "getStatus":
             SQLquery = "SELECT * FROM user_status WHERE user_id=" + req.session.key["user_id"];
             break;
+          case 'getUnusedContacts':
+            const subQuery = sqlQueries.getContacts.clone()
+              .field('partner_id')
+              .where('user_id = ?', req.session.user.id);
+            
+            SQLquery = sqlQueries.getUnusedContacts.clone()
+              .field("id")
+              .field("nick")
+              .field("name")
+              .field('icon')
+              .where('id NOT IN ?', subQuery)
+              .where("nick LIKE ?", '%' + req.nick_part + '%')
+              .toString();
           default:
             break;
         }
@@ -135,44 +159,43 @@ function handle_database(req, type, callback) {
         console.info(SQLquery);
         connection.query(SQLquery, function(err, rows) {
           connection.release();
-          if (!err) {
-            if (type === "getMessages") {
-              callback(rows.length === 0 ? false : rows);
-            } else if (type === "users") {
-              callback(rows.length === 0 ? false : rows);
-            }
-            else if (type === "login") {
-              callback(rows.length === 0 ? false : rows[0]);
-            }
-            else if (type === "getStatus") {
-              callback(rows.length === 0 ? false : rows);
-            }
-            else if (type === "getContactsWLM") {
-              callback(rows.length === 0 ? false : rows);
-            }
-            else if (type === "checkEmail") {
-              callback(rows.length === 0 ? false : true);
-            }
-            else {
-              callback(false);
-            }
-          }
-          else {
+          
+          if (err) {
             // if there is error, stop right away.
             // This will stop the async code execution and goes to last function.
-            console.error(err);
-            callback(true);
+            callback(err);
+          } else {
+            if (type === "getMessages") {
+              callback(null, rows.length === 0 ? false : rows);
+            } else if (type === "getUnusedContacts") {
+              callback(null, rows.length === 0 ? false : rows);
+            } else if (type === "users") {
+              callback(null, rows.length === 0 ? false : rows);
+            }
+            else if (type === "login") {
+              callback(null, rows.length === 0 ? false : rows[0]);
+            }
+            else if (type === "getStatus") {
+              callback(null, rows.length === 0 ? false : rows);
+            }
+            else if (type === "getContactsWLM") {
+              callback(null, rows.length === 0 ? false : rows);
+            }
+            else if (type === "checkEmail") {
+              callback(null, rows.length === 0 ? false : true);
+            }
+            else {
+              callback(null, false);
+            }
           }
         });
       }
     ],
-    function(result) {
-      // This function gets call after every async task finished.
-      if (typeof(result) === "boolean" && result === true) {
-        callback(null);
-      }
-      else {
-        callback(result);
+    function(err, result) {
+      if (err) {
+        callback(err);
+      } else {
+        callback(null, result);
       }
     });
 }
@@ -219,17 +242,16 @@ app.get('/',function(req,res){
     console.log(req.session);    
   }
   if(req.session.user) {
-    // var id = 15;
-    req.room_key = 3346011300;
-    handle_database(req, 'getMessages', (messages) => {
-      handle_database(req, 'getContactsWLM', (contacts) => {
+    handle_database(req, 'getContactsWLM', (err, contacts) => {
+      if (err) {
+        console.error(err);
+      } else {
         req.session.contacts = contacts;
         res.render('chat', {
           user: req.session.user,
-          messages: messages,
           contacts: contacts,
         });
-      });
+      }
     });
   } else {
       res.redirect("/login");
@@ -239,18 +261,42 @@ app.get('/',function(req,res){
 app.get('/messages', (req, res, next) => {
   req.query = req.query || {};
   req.room_key = req.query.room_key || 3346011300;
-  handle_database(req, 'getMessages', (messages) => {
-    res.render('messages', {
-      user: req.session.user,
-      messages: messages,
-    });
+  handle_database(req, 'getMessages', (err, messages) => {
+    if (err) {
+      console.error(err);
+    } else {
+      res.render('messages', {
+        user: req.session.user,
+        messages: messages,
+      });
+    }
+  });
+});
+
+app.get('/unused-contacts', (req, res, next) => {
+  req.query = req.query || {};
+  req.nick_part = req.query.nick_part || 'abc';
+  handle_database(req, 'getUnusedContacts', (err, users) => {
+    if (err) {
+      console.error(err);
+    } else {
+      res.render('unusedContacts', {
+        user: req.session.user,
+        users: users,
+      });
+    }
   });
 });
 
 
+
 app.get('/users', (req, res, next) => {
-  handle_database(req, 'users', (rows) => {
-    res.json(rows);
+  handle_database(req, 'users', (err, rows) => {
+    if (err) {
+      console.error(err);
+    } else {
+      res.json(rows);
+    }
   });
 });
 
@@ -259,17 +305,15 @@ app.get('/login', (req, res, next) => {
 });
 
 app.post('/login', (req, res, next) => {
-  handle_database(req, "login", function(response) {
-    if (response === null) {
-      res.json({error: true, message: 'Database error occured'});
-    }
-    else {
-      if (!response) {
+  handle_database(req, "login", function(err, user) {
+    if (err) {
+      res.json({error: true, message: 'Database error occured: ' + err.message});
+    } else {
+      if (!user) {
         res.json({error: true, message: 'Login failed ! Please register'});
-      }
-      else {
-        req.session.user = response;
-        console.info(response);
+      } else {
+        req.session.user = user;
+        console.info(user);
         res.json({error: false, message: 'Login success.'});
       }
     }
@@ -291,17 +335,31 @@ app.get('/mysql', (req, res, next) => {
 });
 
 app.post('/register', (req, res, next) => {
-  handle_database(req, 'register', (result) => {
-    if (result === null) {
+  handle_database(req, 'register', (err) => {
+    if (err) {
+      console.error(err);
       res.json({ "error": true, "message": "Error while adding user." });
-    }
-    else {
-      res.json({ "error": false, "message": "Registered successfully." });
+    } else {
+      handle_database(req, "login", function(err, user) {
+        if (err) {
+          res.json({error: true, message: 'Database error occured: ' + err.message});
+        } else {
+          if (!user) {
+            res.json({error: true, message: 'Login failed ! Please register'});
+          } else {
+            req.session.user = user;
+            console.info(user);
+            res.json({ "error": false, "message": "Registered successfully." });
+          }
+        }
+      });
     }
   });
 });
 
 app.post('/invite-user', (req, res, next) => {
+  req.body.user_id = req.session.user.id;
+  
   var participants = [
     req.body.user_id,
     req.body.partner_id
@@ -309,22 +367,22 @@ app.post('/invite-user', (req, res, next) => {
 
   req.body.room_key = crc.unsigned(participants.sort().join('::'));
 
-  handle_database(req, 'inviteUser', (result) => {
-    if (result === null) {
+  handle_database(req, 'inviteUser', (err, result) => {
+    if (err) {
+      console.error(err);
       res.json({ "error": true, "message": "Error while inviting user." });
-    }
-    else {
+    } else {
       res.json({ "error": false, "message": "Invited successfully." });
     }
   });
 });
 
 app.post('/add-message', (req, res, next) => {
-  handle_database(req, 'addMessage', (result) => {
-    if (result === null) {
+  handle_database(req, 'addMessage', (err, result) => {
+    if (err) {
+      console.error(err);
       res.json({ "error": true, "message": "Error while adding message." });
-    }
-    else {
+    } else {
       res.json({ "error": false, "message": "Added successfully." });
     }
   });
@@ -333,8 +391,9 @@ app.post('/add-message', (req, res, next) => {
 app.get('/chat', (req, res, next) => {
   var id = 15;
   req.room_key = 3346011300;
-  handle_database(req, 'getMessages', (result) => {
-    if (result === null) {
+  handle_database(req, 'getMessages', (err, result) => {
+    if (err) {
+      console.error(err);
       res.render('chat', {
         id: id,
         messages: [
@@ -354,6 +413,8 @@ app.get('/chat', (req, res, next) => {
   });
 
 });
+
+
 
 // Chatroom
 var numUsers = 0;
@@ -378,11 +439,16 @@ io.on('connection', (socket) => {
         }
       };
       
-      handle_database(dummyReq, 'addMessage', (result)=>{
-        console.info(result);
-        // we tell the client to execute 'new message'
-        data.username = socket.username;
-        socket.to(data.room_key).emit('new message', data);
+      handle_database(dummyReq, 'addMessage', (err, result)=>{
+        if (err) {
+          console.error(err);
+        } else {
+          console.info(result);
+          // we tell the client to execute 'new message'
+          data.username = socket.username;
+          data.user_id  = socket.request.session.user.id;
+          socket.to(data.room_key).emit('new message', data);
+        }
       });
     }
   });

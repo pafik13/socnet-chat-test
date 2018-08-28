@@ -1,3 +1,6 @@
+<!-- https://ru.m.wikipedia.org/wiki/%D0%A4%D0%B0%D0%B9%D0%BB:Gnome-stock_person.svg -->
+<!-- https://de.wikipedia.org/wiki/Datei:Icon_of_three_people_in_different_shades_of_grey.svg -->
+
 <!-- 
 
 A concept for a chat interface. 
@@ -25,7 +28,7 @@ Author's contacts:
       <div id="sidepanel">
           <div id="profile">
               <div class="wrap">
-                  <img id="profile-img" src="http://emilcarlsson.se/assets/mikeross.png" class="online" alt="" />
+                  <img id="profile-img" src="<%= user.icon %>" class="online" alt="" />
                     <% if (user.name) { %>
                       <p><%= user.name + ' (' + user.nick  +')' %></p>
                     <% } else { %>
@@ -85,7 +88,8 @@ Author's contacts:
           </div>
       </div>
       <div class="content">
-          <div class="contact-profile">
+        <p>Choose any contact for messaging...</p>
+          <div class="contact-profile" style="display:none">
               <img src="http://emilcarlsson.se/assets/harveyspecter.png" alt="" />
               <p>Harvey Specter</p>
               <div class="social-media">
@@ -94,56 +98,11 @@ Author's contacts:
                    <i class="fa fa-instagram" aria-hidden="true"></i>
               </div>
           </div>
-          <div class="messages">
+          <div class="messages" style="display:none">
               <ul>
-                  <li class="sent">
-                      <img src="http://emilcarlsson.se/assets/mikeross.png" alt="" />
-                      <p>How the hell am I supposed to get a jury to believe you when I am not even sure that I do?!</p>
-                  </li>
-                  <li class="replies">
-                      <img src="http://emilcarlsson.se/assets/harveyspecter.png" alt="" />
-                      <p>When you're backed against the wall, break the god damn thing down.</p>
-                  </li>
-                  <li class="replies">
-                      <img src="http://emilcarlsson.se/assets/harveyspecter.png" alt="" />
-                      <p>Excuses don't win championships.</p>
-                  </li>
-                  <li class="sent">
-                      <img src="http://emilcarlsson.se/assets/mikeross.png" alt="" />
-                      <p>Oh yeah, did Michael Jordan tell you that?</p>
-                  </li>
-                  <li class="replies">
-                      <img src="http://emilcarlsson.se/assets/harveyspecter.png" alt="" />
-                      <p>No, I told him that.</p>
-                  </li>
-                  <li class="replies">
-                      <img src="http://emilcarlsson.se/assets/harveyspecter.png" alt="" />
-                      <p>What are your choices when someone puts a gun to your head?</p>
-                  </li>
-                  <li class="sent">
-                      <img src="http://emilcarlsson.se/assets/mikeross.png" alt="" />
-                      <p>What are you talking about? You do what they say or they shoot you.</p>
-                  </li>
-                  <li class="replies">
-                      <img src="http://emilcarlsson.se/assets/harveyspecter.png" alt="" />
-                      <p>Wrong. You take the gun, or you pull out a bigger one. Or, you call their bluff. Or, you do any one of a hundred and forty six other things.</p>
-                  </li>
-                  <% for(var i=0; i<messages.length;i++) {%>
-                    <% if (messages[i].created_by === user.id) { %>
-                      <li class="sent">
-                          <img src="http://emilcarlsson.se/assets/mikeross.png" alt="" />
-                          <p><%=messages[i].message %></p>
-                      </li>
-                    <% } else { %>
-                      <li class="replies">
-                          <img src="http://emilcarlsson.se/assets/harveyspecter.png" alt="" />
-                          <p><%=messages[i].message %></p>
-                      </li>
-                    <% } %>
-                  <%} %>
               </ul>
           </div>
-          <div class="message-input">
+          <div class="message-input" style="display:none">
               <div class="wrap">
               <input type="text" placeholder="Write your message..." />
               <i class="fa fa-paperclip attachment" aria-hidden="true"></i>
@@ -152,7 +111,27 @@ Author's contacts:
           </div>
       </div>
   </div>
-    
+  
+  <!-- The Modal -->
+  <div id="modal-form" class="modal">
+  
+    <!-- Modal content -->
+    <div class="modal-content">
+      <div class="modal-header">
+        <span class="close">&times;</span>
+        <h2>Modal Header</h2>
+      </div>
+      <div class="modal-body">
+        <p>Some text in the Modal Body</p>
+        <p>Some other text...</p>
+      </div>
+      <div class="modal-footer">
+        <h3>Modal Footer</h3>
+      </div>
+    </div>
+  
+  </div>
+  
   <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
   <script src="/socket.io/socket.io.js"></script>
   <script src="public/main.js"></script>

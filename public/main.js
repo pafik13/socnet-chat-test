@@ -5,9 +5,11 @@ $(() => {
   // Initialize variables
   const $window = $(window);
   const $document = $(document);
+  const $chooseContanct = $('.content > p');
   const $messages = $('.messages'); // Messages area
-  const $messagesList = $messages.find('ul'); // Messages area
-  const $messageInput = $(".message-input input"); // Input message input box
+  const $messagesList = $messages.find('ul'); // Messages list
+  const $input = $('.message-input');
+  const $messageInput = $input.find('input'); // Input message input box
   const $contacts = $('#contacts'); // Contacts container
   var $currentContact = null;
   const $contactProfile = $('.contact-profile'); // Profile above messages
@@ -239,6 +241,10 @@ $(() => {
   $messages.scrollTop($messages[0].scrollHeight);
 
   var OnLoadFinished = function() {
+    $chooseContanct.hide();
+    $contactProfile.show();
+    $messages.show();
+    $input.show();
     $messages.scrollTop($messages[0].scrollHeight);
   };
 
@@ -255,11 +261,10 @@ $(() => {
       .removeClass('active');
     
     $currentContact = $this;
-    
-    const roomKey = $this.attr('data-room-key');
-    console.log(roomKey);
-    $messagesList.load('/messages?room_key='+roomKey, OnLoadFinished);
-    
+
+    $messages.hide();
+    $input.hide();
+
     const name = $this.find('p.name').text();
     $contactProfile
       .find('p')
@@ -282,5 +287,69 @@ $(() => {
       }
     }
     
+        
+    const roomKey = $this.attr('data-room-key');
+    console.log(roomKey);
+    $messagesList.load('/messages?room_key='+roomKey, OnLoadFinished);
+    
   });
+  
+  
+  const $addContact = $('#addcontact');
+  const $modal = $('#modal-form');
+  const $modalClose = $modal.find('span.close');
+  const $modalHeader = $modal.find('.modal-header h2');
+  const $modalBody = $modal.find('.modal-body');
+  const $modalFooter = $modal.find('.modal-footer h3');
+  
+  $addContact.click((event)=>{
+    $modalHeader.text('Adding new contact');
+    $modalBody
+      .children()
+        .remove()
+        .end()
+      .append('<input type="text" placeholder="Write nick here..." value=""></input>');
+    const $addContactInput = $modalBody.find('input');
+    $modalFooter.text('New Text');
+    $input.hide();
+    $modal.show();
+    
+    
+    $addContactInput.on('input', () => {
+      const nickPart = $addContactInput.val();
+      if (nickPart.length > 3) {
+        $modalFooter.load('/unused-contacts?nick_part=' + nickPart, () => {
+          $modalFooter.find('li').click((event) => {
+            // console.log(this);
+            const $li = $(event.target);
+            const userId = $li.attr('data-user-id');
+            console.log(userId);
+            if (userId) {
+              $.post("/invite-user", {
+                partner_id: userId,
+              }, function(data) {
+                if (!data.error) {
+                  $modalClose.trigger('click');
+                } else {
+                  alert(data.message);
+                }
+              });
+            }
+          });
+        });
+      }
+    });
+  });
+  
+  $window.click((event)=>{
+    if ($(event.target).is($modal)) {
+      $modal.hide();
+    }
+  });
+  
+  $modalClose.click((event)=>{
+    $input.show();
+    $modal.hide();
+  });
+  
 });

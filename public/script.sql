@@ -113,3 +113,6 @@ SELECT R.id      AS room_id
     ON RLM.room_key = R.`key`;
 
 SELECT * FROM vw_contacts_with_last_message WHERE user_id = 15;
+
+
+SELECT * FROM rooms ORDER BY user_id;
