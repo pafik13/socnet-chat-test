@@ -33,12 +33,12 @@ const sqlQueries = {
 
 // Always use MySQL pooling.
 // Helpful for multiple connections.
-var pool = mysql.createPool({
+const pool = mysql.createPool({
   connectionLimit: 100,
   host: 'localhost',
-  user: process.env.C9_USER,
-  password: '',
-  database: 'c9',
+  user: process.env.MYSQL_USER,
+  password: process.env.MYSQL_PASS,
+  database: process.env.MYSQL_DB,
   debug: false
 });
 
