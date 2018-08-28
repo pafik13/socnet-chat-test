@@ -13,7 +13,7 @@ $(() => {
   const $contacts = $('#contacts'); // Contacts container
   var $currentContact = null;
   const $contactProfile = $('.contact-profile'); // Profile above messages
-  
+  const $logout = $('#logout');
   
   // Prompt for setting a username
   var username;
@@ -175,12 +175,18 @@ $(() => {
   });
   
   $("#status-options ul li").click(function() {
+    const $this = $(this);
+    if ($this.is($logout)) {
+      window.location.href = "/logout";
+      return;
+    }
+
     $("#profile-img").removeClass();
     $("#status-online").removeClass("active");
     $("#status-away").removeClass("active");
     $("#status-busy").removeClass("active");
     $("#status-offline").removeClass("active");
-    $(this).addClass("active");
+    $this.addClass("active");
   
     if ($("#status-online").hasClass("active")) {
       $("#profile-img").addClass("online");
