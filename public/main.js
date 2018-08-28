@@ -8,6 +8,10 @@ $(() => {
   const $messages = $('.messages'); // Messages area
   const $messagesList = $messages.find('ul'); // Messages area
   const $messageInput = $(".message-input input"); // Input message input box
+  const $contacts = $('#contacts'); // Contacts container
+  var $currentContact = null;
+  const $contactProfile = $('.contact-profile'); // Profile above messages
+  
   
   // Prompt for setting a username
   var username;
@@ -49,11 +53,26 @@ $(() => {
 
   // Adds the visual chat message to the message list
   const recieveChatMessage = (data) => {
-    const message = $.trim(data.message);
-    $('<li class="replies"><img src="http://emilcarlsson.se/assets/harveyspecter.png" alt="" /><p>' + message + '</p></li>').appendTo($messagesList);
-    $('.contact.active .preview').html('<span>You: </span>' + message);
-    $messages.animate({ scrollTop: $document.height() }, "fast");
     console.log(data);
+    if (data.room_key) {
+      const roomKey = $.trim(data.room_key);
+      const message = $.trim(data.message);
+      const currentRoomKey = $currentContact.attr('data-room-key');
+      if (roomKey == currentRoomKey) {
+        $('<li class="replies"><img src="http://emilcarlsson.se/assets/harveyspecter.png" alt="" /><p>' + message + '</p></li>').appendTo($messagesList);
+        $currentContact.find('.preview').text(message);
+        // $('.contact.active .preview').html(message);
+        // $messages.animate({ scrollTop: $document.height() }, "fast");
+        $messages.scrollTop($messages[0].scrollHeight);
+      } else {
+        $contacts
+          .find('li[data-room-key="'+roomKey+'"]')
+          .find('.preview')
+          .text(message);
+      }
+    } else {
+      console.error('`data.room_key` is undefined');
+    }
   };
 
   // Removes the visual chat typing message
@@ -191,7 +210,11 @@ $(() => {
     $('.contact.active .preview').html('<span>You: </span>' + message);
     $messages.animate({ scrollTop: $document.height() }, "fast");
     // tell server to execute 'new message' and send along one parameter
-    socket.emit('new message', message);
+    var room_key = $currentContact.attr('data-room-key');
+    socket.emit('new message', {
+      room_key: room_key,
+      message: message,
+    });
   }
   
   $('.submit').click(function() {
@@ -217,7 +240,7 @@ $(() => {
 
   var OnLoadFinished = function() {
     $messages.scrollTop($messages[0].scrollHeight);
-  }
+  };
 
   $('li.contact').on('click', function() {
     var $this = $(this);
@@ -230,11 +253,33 @@ $(() => {
       .addClass('active')
       .siblings()
       .removeClass('active');
-    console.log($this.attr('data-room-key'));
-    if (Math.floor(Math.random() * 10) > 4) {
-      $('div.messages > ul').load('/messages?room_key=2907811687', OnLoadFinished);
+    
+    $currentContact = $this;
+    
+    const roomKey = $this.attr('data-room-key');
+    console.log(roomKey);
+    $messagesList.load('/messages?room_key='+roomKey, OnLoadFinished);
+    
+    const name = $this.find('p.name').text();
+    $contactProfile
+      .find('p')
+      .text(name);
+      
+    const img = $this.find('img');
+    if (img.length) {
+      const profileImg = $contactProfile.find('img');
+      if (profileImg.length) {
+        profileImg.attr('src', img.attr('src'));
+      } else {
+        $contactProfile.find('i').remove();
+        img.clone().prependTo($contactProfile);
+      }
     } else {
-      $('div.messages > ul').load('/messages', OnLoadFinished);
+      const profileImg = $contactProfile.find('img');
+      if (profileImg.length) {
+        profileImg.remove();
+        $contactProfile.prepend($('<i class="fa fa-user fa-3x" aria-hidden="true"></i>'));
+      }
     }
     
   });

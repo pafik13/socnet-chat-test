@@ -482,7 +482,8 @@ body {
 
 #frame #sidepanel #contacts ul li.contact .wrap i {
     float: left;
-    margin-right: 10px;
+    margin-right: 12px;
+    margin-left: 4px;
 }
 
 @media screen and (max-width: 735px) {
@@ -623,6 +624,11 @@ body {
     border-radius: 50%;
     float: left;
     margin: 9px 12px 0 9px;
+}
+
+#frame .content .contact-profile i {
+    float: left;
+    margin: 3px 12px 0 9px;
 }
 
 #frame .content .contact-profile p {

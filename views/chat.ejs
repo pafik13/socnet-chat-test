@@ -67,8 +67,12 @@ Author's contacts:
                             <i class="fa fa-user fa-3x" aria-hidden="true"></i>
                           <% } %>
                           <div class="meta">
-                              <p class="name"><%=contacts[i].name %></p>
-                              <p class="preview"><%=contacts[i].room_last_message %></p>
+                              <p class="name"><%=contacts[i].name || contacts[i].nick %></p>
+                              <% if (contacts[i].room_last_message) { %>
+                                <p class="preview"><%=contacts[i].room_last_message %></p>
+                             <% } else { %>
+                                <p class="preview"><span>No messages yet...</span> %></p>
+                              <% } %>  
                           </div>
                       </div>
                   </li>

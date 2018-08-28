@@ -370,10 +370,19 @@ io.on('connection', (socket) => {
   // when the client emits 'new message', this listens and executes
   socket.on('new message', (data) => {
     if (data.room_key) {
-      // we tell the client to execute 'new message'
-      socket.to(data.room_key).emit('new message', {
-        username: socket.username,
-        message: data
+      const dummyReq = {
+        body: {
+          room_key: data.room_key,
+          message: data.message,
+          user_id: socket.request.session.user.id,
+        }
+      };
+      
+      handle_database(dummyReq, 'addMessage', (result)=>{
+        console.info(result);
+        // we tell the client to execute 'new message'
+        data.username = socket.username;
+        socket.to(data.room_key).emit('new message', data);
       });
     }
   });
@@ -423,6 +432,7 @@ io.on('connection', (socket) => {
     }
   });
   
+  // join to all rooms
   if (socket.request.session) {
     if (Array.isArray(socket.request.session.contacts)) {
       var contacts = socket.request.session.contacts;
