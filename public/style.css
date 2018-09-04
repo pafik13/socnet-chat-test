@@ -891,6 +891,10 @@ body {
     color: white;
 }
 
+.modal-footer li {
+    cursor: pointer;
+}
+
 .modal-body input {
     border: none;
     padding: 10px;

@@ -143,47 +143,107 @@ $(() => {
     }
   };
   
+const OnContactClicked = function(event) {
+    var $this = $(this);
+    if ($this.hasClass('active')) {
+      console.log(this);
+      return;
+    }
+    
+    $this
+      .addClass('active')
+      .siblings()
+      .removeClass('active');
+    
+    $currentContact = $this;
+
+    $messages.hide();
+    $input.hide();
+
+    const name = $this.find('p.name').text();
+    $contactProfile
+      .find('p')
+      .text(name);
+      
+    const img = $this.find('img');
+    if (img.length) {
+      const profileImg = $contactProfile.find('img');
+      if (profileImg.length) {
+        profileImg.attr('src', img.attr('src'));
+      } else {
+        $contactProfile.find('i').remove();
+        img.clone().prependTo($contactProfile);
+      }
+    } else {
+      const profileImg = $contactProfile.find('img');
+      if (profileImg.length) {
+        profileImg.remove();
+        $contactProfile.prepend($('<i class="fa fa-user fa-3x" aria-hidden="true"></i>'));
+      }
+    }
+    
+        
+    const roomKey = $this.attr('data-room-key');
+    console.log(roomKey);
+    $messagesList.load('/messages?room_key='+roomKey, OnLoadFinished);
+    
+  };
+  
   const addContact = (roomKey, user) => {
-    const wrap = $('<div class="wrap"></div>')
-      .append($('<span class="contact-status online"></span>'))
-        .end()
-      .append($('<img>').attr('src', user.icon));
     
-    const meta = $('<div class="meta"></div>')
-      .append($('<p class="name"></p>').text(user.name || user.nick))
-        .end()
-      .append($('<p class="typing" style="display:none"><i class="fa fa-pencil" aria-hidden="true"></i>typing...</p>'))
-        .end()
-      .append($('<p class="preview"><span>No messages yet...</span> %></p>'));
+    const wrap = $('<div>',{
+      'class' : 'wrap'
+    });
     
-    const contact = $('<li></li>')
-      .addClass('contact')
-      .attr('data-room-key', roomKey)
-      .append(wrap.append(meta));
+    $('<span>', {
+      'class': 'contact-status online'
+    }).appendTo(wrap);
+    
+    $('<img>', {
+      'src': user.icon
+    }).appendTo(wrap);
+    
+    const meta = $('<div>',{
+      'class' : 'meta'
+    });
+    $('<p class="name"></p>').text(user.name || user.nick).appendTo(meta);
+    $('<p class="typing" style="display:none"><i class="fa fa-pencil" aria-hidden="true"></i>typing...</p>').appendTo(meta);
+    $('<p class="preview"><span>No messages yet...</span></p>').appendTo(meta);
+    
+    meta.appendTo(wrap);
+    
+    const contact = $('<li></li>', {
+      'class': 'contact'
+    }).attr('data-room-key', roomKey);
+    
+    wrap.appendTo(contact);
+    
+    contact.on('click', OnContactClicked);
     
     $contacts.find('ul').append(contact);
-                  // <li class="contact" data-room-key="<%=contacts[i].room_key%>">
-                  //     <div class="wrap">
-                  //         <span class="contact-status"></span>
-                  //         <% if (contacts[i].icon) { %>
-                  //           <img src="<%=contacts[i].icon%>" alt="">
-                  //         <% } else { %>
-                  //           <i class="fa fa-user fa-3x" aria-hidden="true"></i>
-                  //         <% } %>
-                  //         <div class="meta">
-                  //             <p class="name"><%=contacts[i].name || contacts[i].nick %></p>
-                  //             <p class="typing" style="display:none"><i class="fa fa-pencil" aria-hidden="true"></i>typing...</p>
-                  //             <% if (contacts[i].room_last_message) { %>
-                  //               <p class="preview">
-                  //                 <% if (contacts[i].created_by == user.id) { %> <span>You: </span> <% } %>
-                  //                 <%=contacts[i].room_last_message %>
-                  //               </p>
-                  //             <% } else { %>
-                  //               <p class="preview"><span>No messages yet...</span> %></p>
-                  //             <% } %>  
-                  //         </div>
-                  //     </div>
-                  // </li>
+    
+      // <li class="contact" data-room-key="<%=contacts[i].room_key%>">
+      //     <div class="wrap">
+      //         <span class="contact-status"></span>
+      //         <% if (contacts[i].icon) { %>
+      //           <img src="<%=contacts[i].icon%>" alt="">
+      //         <% } else { %>
+      //           <i class="fa fa-user fa-3x" aria-hidden="true"></i>
+      //         <% } %>
+      //         <div class="meta">
+      //             <p class="name"><%=contacts[i].name || contacts[i].nick %></p>
+      //             <p class="typing" style="display:none"><i class="fa fa-pencil" aria-hidden="true"></i>typing...</p>
+      //             <% if (contacts[i].room_last_message) { %>
+      //               <p class="preview">
+      //                 <% if (contacts[i].created_by == user.id) { %> <span>You: </span> <% } %>
+      //                 <%=contacts[i].room_last_message %>
+      //               </p>
+      //             <% } else { %>
+      //               <p class="preview"><span>No messages yet...</span> %></p>
+      //             <% } %>  
+      //         </div>
+      //     </div>
+      // </li>
   };
   
   
@@ -354,52 +414,8 @@ $(() => {
     $input.show();
     $messages.scrollTop($messages[0].scrollHeight);
   };
-
-  $('li.contact').on('click', function() {
-    var $this = $(this);
-    if ($this.hasClass('active')) {
-      console.log(this);
-      return;
-    }
-    
-    $this
-      .addClass('active')
-      .siblings()
-      .removeClass('active');
-    
-    $currentContact = $this;
-
-    $messages.hide();
-    $input.hide();
-
-    const name = $this.find('p.name').text();
-    $contactProfile
-      .find('p')
-      .text(name);
-      
-    const img = $this.find('img');
-    if (img.length) {
-      const profileImg = $contactProfile.find('img');
-      if (profileImg.length) {
-        profileImg.attr('src', img.attr('src'));
-      } else {
-        $contactProfile.find('i').remove();
-        img.clone().prependTo($contactProfile);
-      }
-    } else {
-      const profileImg = $contactProfile.find('img');
-      if (profileImg.length) {
-        profileImg.remove();
-        $contactProfile.prepend($('<i class="fa fa-user fa-3x" aria-hidden="true"></i>'));
-      }
-    }
-    
-        
-    const roomKey = $this.attr('data-room-key');
-    console.log(roomKey);
-    $messagesList.load('/messages?room_key='+roomKey, OnLoadFinished);
-    
-  });
+  
+  $contacts.find('li.contact').on('click', OnContactClicked);
   
   
   const $addContact = $('#addcontact');
