@@ -63,7 +63,7 @@ Author's contacts:
                 <% for(var i=0; i<contacts.length;i++) {%>
                   <li class="contact" data-room-key="<%=contacts[i].room_key%>">
                       <div class="wrap">
-                          <span class="contact-status"></span>
+                          <span class="contact-status <%=contacts[i].status%>"></span>
                           <% if (contacts[i].icon) { %>
                             <img src="<%=contacts[i].icon%>" alt="">
                           <% } else { %>

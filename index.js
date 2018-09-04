@@ -248,11 +248,30 @@ app.get('/',function(req,res){
     handle_database(req, 'getContactsWLM', (err, contacts) => {
       if (err) {
         console.error(err);
+        res.status(500).send(err.message);
       } else {
         req.session.contacts = contacts;
-        res.render('chat', {
-          user: req.session.user,
-          contacts: contacts,
+        const keys = contacts.map((user) => `user:${user.id}`);
+        client.mget(keys, (err, replies) => {
+          if (err) {
+            console.error(err);
+            res.status(500).send(err.message);
+          } else {
+            const len = contacts.length;
+            for(var i = 0; i<len; i++) {
+              if (replies[i] == null) {
+                contacts[i]["status"] = 'offline';
+              } else if (replies[i] == 'false') {
+                contacts[i]["status"] = 'offline';
+              } else if (replies[i] == 'true') {
+                contacts[i]["status"] = 'online';
+              }
+            }
+            res.render('chat', {
+              user: req.session.user,
+              contacts: contacts,
+            });
+          }
         });
       }
     });
@@ -540,7 +559,11 @@ io.on('connection', (socket) => {
       
       // leave to all rooms
       if (socket.request.session) {
-        socket.leave(`user:${socket.request.session.user.id}`);
+        const userIdStr = `user:${socket.request.session.user.id}`;
+        // leave from notification room
+        socket.join(userIdStr);
+        // save status
+        client.set(userIdStr, false, redis.print);
         
         if (Array.isArray(socket.request.session.contacts)) {
           var contacts = socket.request.session.contacts;
@@ -561,7 +584,12 @@ io.on('connection', (socket) => {
   
   // join to all rooms
   if (socket.request.session) {
-    socket.join(`user:${socket.request.session.user.id}`);
+    // console.log(socket.request.session);
+    const userIdStr = `user:${socket.request.session.user.id}`;
+    // join to notification room
+    socket.join(userIdStr);
+    // save status
+    client.set(userIdStr, true, redis.print);
     
     if (Array.isArray(socket.request.session.contacts)) {
       var contacts = socket.request.session.contacts;

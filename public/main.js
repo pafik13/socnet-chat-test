@@ -185,7 +185,7 @@ $(() => {
         
     const roomKey = $this.attr('data-room-key');
     console.log(roomKey);
-    $messagesList.load('/messages?room_key='+roomKey, OnLoadFinished);
+    $messagesList.load('/messages?room_key='+roomKey, onLoadFinished);
     
   };
   
@@ -295,7 +295,6 @@ $(() => {
           .addClass('online');
     }
   });
-
 
   // Whenever the server emits 'invited', add contact to contacts
   socket.on('invited', (data) => {
@@ -417,7 +416,7 @@ $(() => {
   // $messages.animate({ scrollTop: $document.height() });
   $messages.scrollTop($messages[0].scrollHeight);
 
-  var OnLoadFinished = function() {
+  var onLoadFinished = function() {
     $chooseContanct.hide();
     $contactProfile.show();
     $messages.show();
