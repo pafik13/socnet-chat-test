@@ -71,9 +71,13 @@ Author's contacts:
                           <% } %>
                           <div class="meta">
                               <p class="name"><%=contacts[i].name || contacts[i].nick %></p>
+                              <p class="typing" style="display:none"><i class="fa fa-pencil" aria-hidden="true"></i>typing...</p>
                               <% if (contacts[i].room_last_message) { %>
-                                <p class="preview"><%=contacts[i].room_last_message %></p>
-                             <% } else { %>
+                                <p class="preview">
+                                  <% if (contacts[i].created_by == user.id) { %> <span>You: </span> <% } %>
+                                  <%=contacts[i].room_last_message %>
+                                </p>
+                              <% } else { %>
                                 <p class="preview"><span>No messages yet...</span> %></p>
                               <% } %>  
                           </div>
@@ -95,7 +99,7 @@ Author's contacts:
               <div class="social-media">
                   <i class="fa fa-facebook" aria-hidden="true"></i>
                   <i class="fa fa-twitter" aria-hidden="true"></i>
-                   <i class="fa fa-instagram" aria-hidden="true"></i>
+                  <i class="fa fa-instagram" aria-hidden="true"></i>
               </div>
           </div>
           <div class="messages" style="display:none">

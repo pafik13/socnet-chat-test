@@ -61,6 +61,14 @@ function handle_database(req, type, callback) {
           case "users":
             SQLquery = "SELECT * from tbl_users";
             break;
+          case "getUser":
+            SQLquery = sqlQueries.addMessage.clone()
+              .field('id')
+              .field('nick')
+              .field('name')
+              .field('icon')
+              .where('id = ?', req.body.user_id);
+            break;
           case "inviteUser":
             SQLquery = ["INSERT INTO tbl_rooms(`key`, `user_id`, `partner_id`)",
               "VALUES",
@@ -163,6 +171,8 @@ function handle_database(req, type, callback) {
               callback(null, rows.length === 0 ? false : rows);
             } else if (type === "users") {
               callback(null, rows.length === 0 ? false : rows);
+            } else if (type === "getUser") {
+              callback(null, rows.length === 0 ? false : rows[0]);
             }
             else if (type === "login") {
               callback(null, rows.length === 0 ? false : rows[0]);
@@ -361,9 +371,17 @@ app.post('/invite-user', (req, res, next) => {
   handle_database(req, 'inviteUser', (err, result) => {
     if (err) {
       console.error(err);
-      res.json({ "error": true, "message": "Error while inviting user." });
+      res.json({
+        error: true,
+        message: 'Error while inviting user.'
+      });
     } else {
-      res.json({ "error": false, "message": "Invited successfully." });
+      res.json({
+        error: false,
+        message: 'Invited successfully.',
+        room_key: req.body.room_key,
+        partner_id: req.body.partner_id
+      });
     }
   });
 });
@@ -461,18 +479,49 @@ io.on('connection', (socket) => {
       numUsers: numUsers
     });
   });
+  
+  // when the client emits 'user invited', we broadcast it to partner
+  socket.on('user invited', (data) => {
+    console.info('user invited', data);
+    const parnterId = data.parnter_id;
+    const roomKey = data.room_key;
+    const dummyReq = {
+      body: {
+        user_id: socket.request.session.user.id,
+      }
+    };
+    handle_database(dummyReq, 'getUser', (err, result)=>{
+      if (err) {
+        console.error(err);
+      } else {
+        console.info(result);
+        // we tell the client to execute 'new message'
+        socket.to(`user:${parnterId}`).emit('invited', {
+          username: socket.username,
+          room_key: roomKey,
+          user_id: dummyReq.user_id,
+          user: result
+        });
+      }
+    });
+
+  });
 
   // when the client emits 'typing', we broadcast it to others
-  socket.on('typing', () => {
-    socket.broadcast.emit('typing', {
-      username: socket.username
+  socket.on('typing', (data) => {
+    console.info('typing', data);
+    socket.to(data.room_key).emit('typing', {
+      username: socket.username,
+      room_key: data.room_key
     });
   });
 
   // when the client emits 'stop typing', we broadcast it to others
-  socket.on('stop typing', () => {
-    socket.broadcast.emit('stop typing', {
-      username: socket.username
+  socket.on('stop typing', (data) => {
+    console.info('stop typing', data);
+    socket.to(data.room_key).emit('stop typing', {
+      username: socket.username,
+      room_key: data.room_key
     });
   });
 
@@ -491,6 +540,8 @@ io.on('connection', (socket) => {
   
   // join to all rooms
   if (socket.request.session) {
+    socket.join(`user:${socket.request.session.user.id}`);
+    
     if (Array.isArray(socket.request.session.contacts)) {
       var contacts = socket.request.session.contacts;
       for(var i=0, n=contacts.length; i<n; i++) {

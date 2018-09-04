@@ -1,6 +1,6 @@
 <ul class="fa-ul">
     <% for(var i=0; i<users.length;i++) {%>
-        <li data-user-id="<%=users[i].id %>">
+        <li data-user-id="<%=users[i].id %>" data-user-icon="<%=users[i].icon %>" data-user-name="<%=users[i].name %>" data-user-nick="<%=users[i].nick %>">
             <i class="fa fa-plus-square" aria-hidden="true"></i>
             <%=users[i].nick %>
         </li>

@@ -2,6 +2,9 @@
 
 // $('li.contact').map((i, el) => $(el).attr('data-room-key'));
 $(() => {
+  const FADE_TIME = 150; // ms
+  const TYPING_TIMER_LENGTH = 400; // ms
+  
   // Initialize variables
   const $window = $(window);
   const $document = $(document);
@@ -21,7 +24,40 @@ $(() => {
   var typing = false;
   var lastTypingTime;
   // var $currentInput = $usernameInput.focus();
+  
+  const sendStopTyping = () => {
+    const room_key = $currentContact.attr('data-room-key');
+    socket.emit('stop typing', {
+      room_key: room_key
+    });
+    typing = false;
+  };
+  // Updates the typing event
+  const updateTyping = () => {
+    if (connected) {
+      if (!typing) {
+        typing = true;
+        const room_key = $currentContact.attr('data-room-key');
+        socket.emit('typing', {
+          room_key: room_key
+        });
+      }
+      lastTypingTime = (new Date()).getTime();
 
+      setTimeout(() => {
+        var typingTimer = (new Date()).getTime();
+        var timeDiff = typingTimer - lastTypingTime;
+        if (timeDiff >= TYPING_TIMER_LENGTH && typing) {
+          sendStopTyping();
+        }
+      }, TYPING_TIMER_LENGTH);
+    }
+  };
+
+  $messageInput.on('input', () => {
+    updateTyping();
+  });
+  
   const socket = io();
   // $messages.animate({ scrollTop: $document.height() }, "fast");
 
@@ -59,7 +95,7 @@ $(() => {
     if (data.room_key) {
       const roomKey = $.trim(data.room_key);
       const message = $.trim(data.message);
-      const currentRoomKey = $currentContact.attr('data-room-key');
+      const currentRoomKey = $currentContact == null ? null : $currentContact.attr('data-room-key');
       if (roomKey == currentRoomKey) {
         $('<li class="replies"><img src="http://emilcarlsson.se/assets/harveyspecter.png" alt="" /><p>' + message + '</p></li>').appendTo($messagesList);
         $currentContact.find('.preview').text(message);
@@ -79,20 +115,78 @@ $(() => {
 
   // Removes the visual chat typing message
   const removeChatTyping = (data) => {
-    console.log(data);
-    // getTypingMessages(data).fadeOut(() => {
-    //   $(this).remove();
-    // });
+    console.log('removeChatTyping', data);
+    if (data.room_key) {
+      const roomKey = data.room_key;
+      $contacts
+        .find('li[data-room-key="'+roomKey+'"]')
+        .find('.typing')
+          .hide()
+          .end()
+        .find('.preview')
+        .show();
+    }
   };
 
   // Adds the visual chat typing message
   const addChatTyping = (data) => {
-    console.log(data);
-    // data.typing = true;
-    // data.message = 'is typing';
-    // addChatMessage(data);
+    console.log('addChatTyping', data);
+    if (data.room_key) {
+      const roomKey = data.room_key;
+      $contacts
+        .find('li[data-room-key="'+roomKey+'"]')
+        .find('.preview')
+          .hide()
+          .end()
+        .find('.typing')
+        .show();
+    }
   };
-
+  
+  const addContact = (roomKey, user) => {
+    const wrap = $('<div class="wrap"></div>')
+      .append($('<span class="contact-status online"></span>'))
+        .end()
+      .append($('<img>').attr('src', user.icon));
+    
+    const meta = $('<div class="meta"></div>')
+      .append($('<p class="name"></p>').text(user.name || user.nick))
+        .end()
+      .append($('<p class="typing" style="display:none"><i class="fa fa-pencil" aria-hidden="true"></i>typing...</p>'))
+        .end()
+      .append($('<p class="preview"><span>No messages yet...</span> %></p>'));
+    
+    const contact = $('<li></li>')
+      .addClass('contact')
+      .attr('data-room-key', roomKey)
+      .append(wrap.append(meta));
+    
+    $contacts.find('ul').append(contact);
+                  // <li class="contact" data-room-key="<%=contacts[i].room_key%>">
+                  //     <div class="wrap">
+                  //         <span class="contact-status"></span>
+                  //         <% if (contacts[i].icon) { %>
+                  //           <img src="<%=contacts[i].icon%>" alt="">
+                  //         <% } else { %>
+                  //           <i class="fa fa-user fa-3x" aria-hidden="true"></i>
+                  //         <% } %>
+                  //         <div class="meta">
+                  //             <p class="name"><%=contacts[i].name || contacts[i].nick %></p>
+                  //             <p class="typing" style="display:none"><i class="fa fa-pencil" aria-hidden="true"></i>typing...</p>
+                  //             <% if (contacts[i].room_last_message) { %>
+                  //               <p class="preview">
+                  //                 <% if (contacts[i].created_by == user.id) { %> <span>You: </span> <% } %>
+                  //                 <%=contacts[i].room_last_message %>
+                  //               </p>
+                  //             <% } else { %>
+                  //               <p class="preview"><span>No messages yet...</span> %></p>
+                  //             <% } %>  
+                  //         </div>
+                  //     </div>
+                  // </li>
+  };
+  
+  
   // Socket events
 
   // Whenever the server emits 'login', log the login message
@@ -131,6 +225,12 @@ $(() => {
     console.log(data.username + ' left');
     addParticipantsMessage(data);
     removeChatTyping(data);
+  });
+
+  // Whenever the server emits 'user left', log it in the chat body
+  socket.on('invited', (data) => {
+    console.log('invited', data);
+    addContact(data.room_key, data.user);
   });
 
   // Whenever the server emits 'typing', show the typing message
@@ -235,6 +335,7 @@ $(() => {
       $messageInput.focus();
     }
     if (event.which == 13) {
+      sendStopTyping();
       sendMessage();
       event.preventDefault();
     }
@@ -335,6 +436,13 @@ $(() => {
                 partner_id: userId,
               }, function(data) {
                 if (!data.error) {
+                  const user = {
+                    id: userId,
+                    name: $li.attr('data-user-name'),
+                    nick: $li.attr('data-user-nick'),
+                    icon: $li.attr('data-user-icon'),
+                  };
+                  addContact(data.room_key, user);
                   $modalClose.trigger('click');
                 } else {
                   alert(data.message);
@@ -349,7 +457,7 @@ $(() => {
   
   $window.click((event)=>{
     if ($(event.target).is($modal)) {
-      $modal.hide();
+      $modalClose.trigger('click');
     }
   });
   
