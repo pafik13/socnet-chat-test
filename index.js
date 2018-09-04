@@ -92,6 +92,8 @@ function handle_database(req, type, callback) {
               .field("created_at")
               .field("U.icon", 'user_icon')
               .where("room_key = ?", req.room_key)
+              .order('created_at', false)
+              .limit(15)
               .toString();
             break;
           case "getContactsWLM":
