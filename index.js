@@ -532,11 +532,30 @@ io.on('connection', (socket) => {
     if (addedUser) {
       --numUsers;
 
-      // echo globally that this client has left
-      socket.broadcast.emit('user left', {
-        username: socket.username,
-        numUsers: numUsers
-      });
+      // // echo globally that this client has left
+      // socket.broadcast.emit('user left', {
+      //   username: socket.username,
+      //   numUsers: numUsers
+      // });
+      
+      // leave to all rooms
+      if (socket.request.session) {
+        socket.leave(`user:${socket.request.session.user.id}`);
+        
+        if (Array.isArray(socket.request.session.contacts)) {
+          var contacts = socket.request.session.contacts;
+          for(var i=0, n=contacts.length; i<n; i++) {
+            socket.leave(contacts[i].room_key, ((roomKey)=> {
+              return () => {
+                console.log('leave', roomKey);
+                socket.to(roomKey).emit('user left', {
+                  room_key: roomKey,
+                });
+              };
+            })(contacts[i].room_key));
+          }
+        }
+      }
     }
   });
   
@@ -546,11 +565,16 @@ io.on('connection', (socket) => {
     
     if (Array.isArray(socket.request.session.contacts)) {
       var contacts = socket.request.session.contacts;
-      for(var i=0, n=contacts.length; i<n; i++) {
-        socket.join(contacts[i].room_key, ()=>{
-          console.log(socket.rooms);
-        });
-      }
+        for(var i=0, n=contacts.length; i<n; i++) {
+          socket.join(contacts[i].room_key, ((roomKey)=> {
+            return () => {
+              console.log('join', roomKey);
+              socket.to(roomKey).emit('user joined', {
+                room_key: roomKey,
+              });
+            };
+          })(contacts[i].room_key));
+        }
     }
   }
 });

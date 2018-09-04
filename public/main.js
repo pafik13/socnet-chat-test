@@ -143,7 +143,7 @@ $(() => {
     }
   };
   
-const OnContactClicked = function(event) {
+  const onContactClicked = function(event) {
     var $this = $(this);
     if ($this.hasClass('active')) {
       console.log(this);
@@ -218,7 +218,7 @@ const OnContactClicked = function(event) {
     
     wrap.appendTo(contact);
     
-    contact.on('click', OnContactClicked);
+    contact.on('click', onContactClicked);
     
     $contacts.find('ul').append(contact);
     
@@ -272,22 +272,32 @@ const OnContactClicked = function(event) {
     recieveChatMessage(data);
   });
 
-  // Whenever the server emits 'user joined', log it in the chat body
-  socket.on('user joined', (data) => {
-    // log(data.username + ' joined');
-    console.log(data.username + ' joined');
-    addParticipantsMessage(data);
-  });
-
-  // Whenever the server emits 'user left', log it in the chat body
+  // Whenever the server emits 'user left', change contact status
   socket.on('user left', (data) => {
-    // log(data.username + ' left');
-    console.log(data.username + ' left');
-    addParticipantsMessage(data);
-    removeChatTyping(data);
+    if (data.room_key) {
+      const roomKey = data.room_key;
+      $contacts
+        .find('li[data-room-key="'+roomKey+'"]')
+          .find('span.contact-status')
+          .removeClass('online')
+          .addClass('offline');
+    }
+  });
+  
+  // Whenever the server emits 'user joined', change contact status
+  socket.on('user joined', (data) => {
+    if (data.room_key) {
+      const roomKey = data.room_key;
+      $contacts
+        .find('li[data-room-key="'+roomKey+'"]')
+          .find('span.contact-status')
+          .removeClass('offline')
+          .addClass('online');
+    }
   });
 
-  // Whenever the server emits 'user left', log it in the chat body
+
+  // Whenever the server emits 'invited', add contact to contacts
   socket.on('invited', (data) => {
     console.log('invited', data);
     addContact(data.room_key, data.user);
@@ -415,7 +425,7 @@ const OnContactClicked = function(event) {
     $messages.scrollTop($messages[0].scrollHeight);
   };
   
-  $contacts.find('li.contact').on('click', OnContactClicked);
+  $contacts.find('li.contact').on('click', onContactClicked);
   
   
   const $addContact = $('#addcontact');
