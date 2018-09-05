@@ -183,7 +183,7 @@ function handle_database(req, type, callback) {
               callback(null, rows.length === 0 ? false : rows);
             }
             else if (type === "getContactsWLM") {
-              callback(null, rows.length === 0 ? false : rows);
+              callback(null, rows);
             }
             else if (type === "checkEmail") {
               callback(null, rows.length === 0 ? false : true);
@@ -251,28 +251,35 @@ app.get('/',function(req,res){
         res.status(500).send(err.message);
       } else {
         req.session.contacts = contacts;
-        const keys = contacts.map((user) => `user:${user.id}`);
-        client.mget(keys, (err, replies) => {
-          if (err) {
-            console.error(err);
-            res.status(500).send(err.message);
-          } else {
-            const len = contacts.length;
-            for(var i = 0; i<len; i++) {
-              if (replies[i] == null) {
-                contacts[i]["status"] = 'offline';
-              } else if (replies[i] == 'false') {
-                contacts[i]["status"] = 'offline';
-              } else if (replies[i] == 'true') {
-                contacts[i]["status"] = 'online';
+        if (!contacts.length) {
+          res.render('chat', {
+            user: req.session.user,
+            contacts: contacts,
+          });
+        } else {
+          const keys = contacts.map((user) => `user:${user.id}`);
+          client.mget(keys, (err, replies) => {
+            if (err) {
+              console.error(err);
+              res.status(500).send(err.message);
+            } else {
+              const len = contacts.length;
+              for(var i = 0; i<len; i++) {
+                if (replies[i] == null) {
+                  contacts[i]["status"] = 'offline';
+                } else if (replies[i] == 'false') {
+                  contacts[i]["status"] = 'offline';
+                } else if (replies[i] == 'true') {
+                  contacts[i]["status"] = 'online';
+                }
               }
+              res.render('chat', {
+                user: req.session.user,
+                contacts: contacts,
+              });
             }
-            res.render('chat', {
-              user: req.session.user,
-              contacts: contacts,
-            });
-          }
-        });
+          });
+        }
       }
     });
   } else {
