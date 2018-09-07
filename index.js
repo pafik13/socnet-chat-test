@@ -62,12 +62,13 @@ function handle_database(req, type, callback) {
             SQLquery = "SELECT * from tbl_users";
             break;
           case "getUser":
-            SQLquery = sqlQueries.addMessage.clone()
+            SQLquery = sqlQueries.getUser.clone()
               .field('id')
               .field('nick')
               .field('name')
               .field('icon')
-              .where('id = ?', req.body.user_id);
+              .where('id = ?', req.body.user_id)
+              .toString();
             break;
           case "inviteUser":
             SQLquery = ["INSERT INTO tbl_rooms(`key`, `user_id`, `partner_id`)",
@@ -305,13 +306,31 @@ app.get('/messages', (req, res, next) => {
 app.get('/unused-contacts', (req, res, next) => {
   req.query = req.query || {};
   req.nick_part = req.query.nick_part || 'abc';
-  handle_database(req, 'getUnusedContacts', (err, users) => {
+  handle_database(req, 'getUnusedContacts', (err, contacts) => {
     if (err) {
       console.error(err);
     } else {
-      res.render('unusedContacts', {
-        user: req.session.user,
-        users: users,
+      const keys = contacts.map((user) => `user:${user.id}`);
+      client.mget(keys, (err, replies) => {
+        if (err) {
+          console.error(err);
+          res.status(500).send(err.message);
+        } else {
+          const len = contacts.length;
+          for(var i = 0; i<len; i++) {
+            if (replies[i] == null) {
+              contacts[i]["status"] = 'offline';
+            } else if (replies[i] == 'false') {
+              contacts[i]["status"] = 'offline';
+            } else if (replies[i] == 'true') {
+              contacts[i]["status"] = 'online';
+            }
+          }
+          res.render('unusedContacts', {
+            user: req.session.user,
+            users: contacts,
+          });
+        }
       });
     }
   });
@@ -511,7 +530,7 @@ io.on('connection', (socket) => {
   // when the client emits 'user invited', we broadcast it to partner
   socket.on('user invited', (data) => {
     console.info('user invited', data);
-    const parnterId = data.parnter_id;
+    const partnerId = data.partner_id;
     const roomKey = data.room_key;
     const dummyReq = {
       body: {
@@ -524,15 +543,106 @@ io.on('connection', (socket) => {
       } else {
         console.info(result);
         // we tell the client to execute 'new message'
-        socket.to(`user:${parnterId}`).emit('invited', {
+        socket.to(`user:${partnerId}`).emit('invited', {
           username: socket.username,
           room_key: roomKey,
-          user_id: dummyReq.user_id,
+          user_id: dummyReq.body.user_id,
           user: result
         });
       }
     });
 
+  });
+
+
+  // when the client emits 'user invited', we broadcast it to partner
+  socket.on('user invite', (data, cb) => {
+    console.info('user invite', data);
+    const dummyReq = {
+      body: {
+        user_id: socket.request.session.user.id,
+        partner_id: data.partner_id,
+      }
+    };
+    
+    var participants = [
+      dummyReq.body.user_id,
+      dummyReq.body.partner_id
+    ];
+  
+    dummyReq.body.room_key = crc.unsigned(participants.sort().join('::'));
+  
+    handle_database(dummyReq, 'inviteUser', (err, result) => {
+      if (err) {
+        console.error(err);
+        cb(err.message, 'Error while inviting user.');
+      } else {
+        socket.join(dummyReq.body.room_key, () => {
+          socket.request.session.contacts.push(data.user);
+          cb(null, {
+            room_key: dummyReq.body.room_key,
+            partner_id: dummyReq.body.partner_id,
+          });
+        });
+        
+        handle_database(dummyReq, 'getUser', (err, result)=>{
+          if (err) {
+            console.error(err);
+          } else {
+            console.info(result);
+            result.status = 'online';
+            const userIdStr = `user:${dummyReq.body.partner_id}`;
+            socket.to(userIdStr).emit('invited', {
+              username: socket.username,
+              room_key: dummyReq.body.room_key,
+              user_id: dummyReq.body.user_id,
+              user: result
+            });
+          }
+        });
+        
+      }
+    });
+  });
+  
+  
+  socket.on('join to', (data, cb) => {
+    console.log('join to', data.room_key);
+    if (data.room_key) {
+      socket.join(data.room_key, () => {
+        data.user.room_key = data.room_key;
+        socket.request.session.contacts.push(data.user);
+        cb(`joined to room:${data.room_key}`);
+      });
+    }
+  });
+  
+
+  socket.on('get user status', (data, cb) => {
+    console.log('get user status', data);
+    if (data.partner_id) {
+      const key = `user:${data.partner_id}`;
+      client.get(key, (err, reply) => {
+        if (err) {
+          console.error(err);
+          cb(err);
+        } else {
+          var status;
+          if (reply == null) {
+            status = 'offline';
+          } else if (reply == 'false') {
+            status = 'offline';
+          } else if (reply == 'true') {
+            status = 'online';
+          }
+          
+          cb(null, status);
+        }
+      });
+      socket.join(data.room_key, () => {
+        cb(`joined to room:${data.room_key}`);
+      });
+    }
   });
 
   // when the client emits 'typing', we broadcast it to others
@@ -551,6 +661,31 @@ io.on('connection', (socket) => {
       username: socket.username,
       room_key: data.room_key
     });
+  });
+
+  socket.on('logout', () => {
+    // leave to all rooms
+    if (socket.request.session) {
+      const userIdStr = `user:${socket.request.session.user.id}`;
+      // leave from notification room
+      socket.join(userIdStr);
+      // save status
+      client.set(userIdStr, false, redis.print);
+      
+      if (Array.isArray(socket.request.session.contacts)) {
+        var contacts = socket.request.session.contacts;
+        for(var i=0, n=contacts.length; i<n; i++) {
+          socket.leave(contacts[i].room_key, ((roomKey)=> {
+            return () => {
+              console.log('leave', roomKey);
+              socket.to(roomKey).emit('user left', {
+                room_key: roomKey,
+              });
+            };
+          })(contacts[i].room_key));
+        }
+      }
+    }
   });
 
   // when the user disconnects.. perform this

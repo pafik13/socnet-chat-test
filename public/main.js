@@ -195,8 +195,10 @@ $(() => {
       'class' : 'wrap'
     });
     
+    user.status = user.status || 'offline';
+    
     $('<span>', {
-      'class': 'contact-status online'
+      'class': 'contact-status ' + user.status
     }).appendTo(wrap);
     
     $('<img>', {
@@ -300,6 +302,9 @@ $(() => {
   socket.on('invited', (data) => {
     console.log('invited', data);
     addContact(data.room_key, data.user);
+    socket.emit('join to', data, (result) => {
+      console.log(result);
+    });
   });
 
   // Whenever the server emits 'typing', show the typing message
@@ -346,6 +351,7 @@ $(() => {
   $("#status-options ul li").click(function() {
     const $this = $(this);
     if ($this.is($logout)) {
+      // socket.emit('logout');
       window.location.href = "/logout";
       return;
     }
@@ -457,20 +463,19 @@ $(() => {
             const userId = $li.attr('data-user-id');
             console.log(userId);
             if (userId) {
-              $.post("/invite-user", {
-                partner_id: userId,
-              }, function(data) {
-                if (!data.error) {
-                  const user = {
-                    id: userId,
-                    name: $li.attr('data-user-name'),
-                    nick: $li.attr('data-user-nick'),
-                    icon: $li.attr('data-user-icon'),
-                  };
-                  addContact(data.room_key, user);
-                  $modalClose.trigger('click');
+              const user = {
+                id: userId,
+                name: $li.attr('data-user-name'),
+                nick: $li.attr('data-user-nick'),
+                icon: $li.attr('data-user-icon'),
+                status: $li.attr('data-user-status'),
+              };
+              socket.emit('user invite', {partner_id: userId, user: user}, (err, data) => {
+                if (err) {
+                  alert(data);
                 } else {
-                  alert(data.message);
+                  addContact(data.room_key, user);
+                  $modalClose.trigger('click'); 
                 }
               });
             }
