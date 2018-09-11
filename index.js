@@ -121,10 +121,6 @@ function handle_database(req, type, callback) {
               .where("nick = ?", req.body.nickname)
               .where("pwd = ?", req.body.password)
               .toString();
-            // SQLquery = "SELECT * from user_login WHERE user_email='" + req.body.user_email + "' AND `user_password`='" + req.body.user_password + "'";
-            break;
-          case "checkEmail":
-            SQLquery = "SELECT * from user_login WHERE user_email='" + req.body.user_email + "'";
             break;
           case "register":
             SQLquery = sqlQueries.addUser.clone()
@@ -133,12 +129,6 @@ function handle_database(req, type, callback) {
               .set('name', connection.escape(req.body.fullname), { dontQuote: true })
               .set('icon', connection.escape(DUMMY_ICON), { dontQuote: true })
               .toString();
-            break;
-          case "addStatus":
-            SQLquery = "INSERT into user_status(user_id,user_status) VALUES (" + req.session.key["user_id"] + ",'" + req.body.status + "')";
-            break;
-          case "getStatus":
-            SQLquery = "SELECT * FROM user_status WHERE user_id=" + req.session.key["user_id"];
             break;
           case 'getUnusedContacts':
             const subQuery = sqlQueries.getContacts.clone()
@@ -336,8 +326,6 @@ app.get('/unused-contacts', (req, res, next) => {
   });
 });
 
-
-
 app.get('/users', (req, res, next) => {
   handle_database(req, 'users', (err, rows) => {
     if (err) {
@@ -353,7 +341,7 @@ app.get('/login', (req, res, next) => {
 });
 
 app.post('/login', (req, res, next) => {
-  handle_database(req, "login", function(err, user) {
+  handle_database(req, 'login', function(err, user) {
     if (err) {
       res.json({error: true, message: 'Database error occured: ' + err.message});
     } else {
@@ -379,7 +367,7 @@ app.get('/logout', (req, res, next) => {
 });
 
 app.get('/mysql', (req, res, next) => {
-  res.sendFile(path.join(__dirname, 'mysql.html'));
+  res.sendFile(path.join(__dirname, 'public/_mysql.html'));
 });
 
 app.post('/register', (req, res, next) => {
@@ -388,7 +376,7 @@ app.post('/register', (req, res, next) => {
       console.error(err);
       res.json({ "error": true, "message": "Error while adding user." });
     } else {
-      handle_database(req, "login", function(err, user) {
+      handle_database(req, 'login', function(err, user) {
         if (err) {
           res.json({error: true, message: 'Database error occured: ' + err.message});
         } else {
@@ -554,7 +542,6 @@ io.on('connection', (socket) => {
 
   });
 
-
   // when the client emits 'user invited', we broadcast it to partner
   socket.on('user invite', (data, cb) => {
     console.info('user invite', data);
@@ -605,7 +592,6 @@ io.on('connection', (socket) => {
     });
   });
   
-  
   socket.on('join to', (data, cb) => {
     console.log('join to', data.room_key);
     if (data.room_key) {
@@ -617,7 +603,6 @@ io.on('connection', (socket) => {
     }
   });
   
-
   socket.on('get user status', (data, cb) => {
     console.log('get user status', data);
     if (data.partner_id) {
