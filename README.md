@@ -15,5 +15,5 @@ $ npm start
 ## Features
 
 - Users can add another users.
-- Users can type chat messages to the chat room.
+- Users can type chat messages to another users.
 - Users can see status of another users.
